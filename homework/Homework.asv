@@ -1,0 +1,84 @@
+clear; clc; close all;
+
+syms q1 q2 l1 l2 real
+syms dq1 dq2 ddq1 ddq2 real
+syms lambda dlambda real
+
+%% Definition of values
+
+lambda0 = 0.5;
+theta_d = pi/8;
+
+q0 = [pi/4, 0];
+l = [1,1];
+
+%% Symbolic values
+
+q = [q1,q2];
+dq = [dq1,dq2];
+
+p1_sym = [l1 * cos(q1) ; l1 * sin(q1)];
+J1_sym = jacobian(p1_sym, q);
+
+p2_sym = [l1 * cos(q1) + l2 * cos(q1+q2) ; l1 * sin(q1) + l2 * sin(q1+q2)];
+J2_sym = jacobian(p2_sym, q);
+
+theta = q1 + q2;
+J_theta = jacobian(theta, q);
+
+p_rcm_sym = p1_sym + lambda * (p2_sym - p1_sym);
+J_rcm_sym = jacobian(p_rcm_sym, q);
+
+% dJ_rcm,lambda = (d(p_rcm_sym) / d lambda) = p2(q) - p1(q)
+dJ_rcm_lambda_sym = p2_sym - p1_sym;
+
+J_rcm_ext_sym = [J_rcm_sym , dJ_rcm_lambda_sym];
+
+s = [q' ; lambda];
+ds = [dq' ; dlambda];
+
+%% Initial values
+p1_val = subs(p1_sym, q, q0);
+p2_val = subs(p2_sym, q, q0);
+
+p_trocar = subs(p_rcm_sym, [q1,q2,lambda], [q0(1), q0(2), lambda0]);
+
+%% Kinematic control
+
+J_ext_sym = [J_theta, 0 ; J_rcm_ext_sym];
+
+e_theta = theta_d - theta;
+e_rcm = p_trocar - p_rcm_sym;
+
+e_ext = [e_theta ; e_rcm];
+
+% Gain matrices
+
+k_rcm = 5;
+k_theta = 3;
+
+K_ext = [
+    k_theta, 0, 0;
+    0, k_rcm, 0;
+    0, 0, k_rcm
+];
+
+w = [0; 0; 0.5 * (0.5 - lambda)];
+
+% Task velocity
+
+dtheta_d = 0;
+dp_rcm_d = [0;0];
+dx_d = [dtheta_d ; dp_rcm_d];
+
+%% Control lawfor extended velocities
+
+pinv_J_ext = pinv(J_ext_sym);
+
+term1_sym = pinv_J_ext * dot_t_d_EXT_sym;
+term2_sym = pinv_J_ext * K_ext_sym * e_ext_sym;
+term3_sym = null_space_projector_sym * w_sym;
+
+
+ds_cmd = pinv_J_ext * (dx_d + K_ext * e_ext) + (eye(3,3) - pinv_J_ext * J_ext_sym) * w;
+
