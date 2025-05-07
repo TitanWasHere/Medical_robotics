@@ -1,0 +1,238 @@
+clear; clc; close all;
+
+% --- SYMBOLIC DEFINITIONS ---
+syms q1 q2 q3 l1 l2 l3 real % Added q3, l3
+syms dq1 dq2 dq3 ddq1 ddq2 ddq3 real
+% lambda is no longer a variable; its fixed value will be used.
+syms theta_d_sym real % Symbolic placeholder for theta_d
+syms p_trocar_x_sym p_trocar_y_sym real % Symbolic placeholders for p_trocar
+
+% --- FIXED VALUES & INITIAL CONDITIONS ---
+lambda_fixed_val = 0.5; % Lambda is now a fixed value, using the previous lambda0
+theta_d_val = pi/8;     % Desired orientation for the 3rd link
+q0_val = [pi/4, 0, 0];  % Initial q = [q1, q2, q3] - q3 starts at 0
+l_val = [1, 0.5, ];    % l = [l1, l2, l3] - Added a length for l3
+
+% --- SYMBOLIC KINEMATICS ---
+q_sym = [q1; q2; q3]; % State vector for Jacobians
+
+% Forward Kinematics for a 3-link arm
+p1_sym = [l1 * cos(q1);
+          l1 * sin(q1)];
+p2_sym = p1_sym + [l2 * cos(q1+q2);
+                   l2 * sin(q1+q2)];
+p3_sym = p2_sym + [l3 * cos(q1+q2+q3); % End-effector (tip of link 3)
+                   l3 * sin(q1+q2+q3)];
+
+% Task 1: Orientation of the 3rd link
+theta_task_sym = q1 + q2 + q3;
+J_theta_task_sym = jacobian(theta_task_sym, q_sym); % Will be [1, 1, 1]
+
+% Task 2: RCM point on the *second link* (p1 to p2) with fixed lambda
+% Substitute fixed lambda value directly into the RCM symbolic expression
+p_rcm_on_link2_sym = p1_sym + lambda_fixed_val * (p2_sym - p1_sym);
+J_rcm_on_link2_sym = jacobian(p_rcm_on_link2_sym, q_sym); % Will be 2x3. Third column will be zero.
+
+% --- INITIAL NUMERICAL VALUES (e.g., Trocar Position) ---
+% Trocar position is determined by the initial configuration (q1, q2) and fixed lambda
+% as p_rcm is defined on link 2.
+p_rcm_init_calc_sym = subs(p_rcm_on_link2_sym, {l1, l2}, {l_val(1), l_val(2)});
+p_trocar_val = double(subs(p_rcm_init_calc_sym, {q1, q2}, {q0_val(1), q0_val(2)}));
+
+% --- KINEMATIC CONTROL (Symbolic) ---
+% Overall Task Jacobian (3x3 for 3 tasks, 3 DoFs)
+J_ext_sym = [J_theta_task_sym; J_rcm_on_link2_sym];
+
+% Task Errors
+p_trocar_target_sym = [p_trocar_x_sym; p_trocar_y_sym]; % Symbolic target for trocar
+e_theta_sym = theta_d_sym - theta_task_sym;
+e_rcm_sym = p_trocar_target_sym - p_rcm_on_link2_sym; % Using p_rcm with fixed lambda
+e_ext_sym = [e_theta_sym ; e_rcm_sym]; % 3x1 error vector
+
+% Gain matrix (remains 3x3 for the 3 tasks)
+k_rcm = 5;
+k_theta = 3;
+K_ext = diag([k_theta, k_rcm, k_rcm]);
+
+% Desired task velocity (remains 3x1, all zeros for regulation task)
+dtheta_d_val = 0;
+dp_rcm_d_val = [0;0];
+dx_d_val = [dtheta_d_val ; dp_rcm_d_val];
+
+% --- CONVERT SYMBOLIC EXPRESSIONS TO MATLAB FUNCTIONS ---
+% Kinematics functions
+p1_fun = matlabFunction(p1_sym, 'Vars', {q1, l1});
+p2_fun = matlabFunction(p2_sym, 'Vars', {q1, q2, l1, l2});
+p3_fun = matlabFunction(p3_sym, 'Vars', {q1, q2, q3, l1, l2, l3});
+
+% RCM calculation function (lambda is already substituted, depends only on q1,q2,l1,l2)
+p_rcm_calc_fun = matlabFunction(p_rcm_on_link2_sym, 'Vars', {q1, q2, l1, l2});
+
+% Task orientation calculation function
+theta_task_calc_fun = matlabFunction(theta_task_sym, 'Vars', {q1, q2, q3});
+
+% Overall Task Jacobian function
+% J_ext_sym depends on q1,q2,q3 (for J_theta part) and l1,l2 (for J_rcm part)
+J_ext_fun = matlabFunction(J_ext_sym, 'Vars', {q1, q2, q3, l1, l2});
+
+% Error function
+% e_ext_sym depends on q1,q2,q3, l1,l2, and the targets
+e_ext_fun = matlabFunction(e_ext_sym, 'Vars', {q1, q2, q3, l1, l2, theta_d_sym, p_trocar_target_sym});
+
+
+% --- SIMULATION PARAMETERS ---
+dt = 0.02;
+T_sim = 10;
+N_steps = round(T_sim/dt);
+
+% Initial conditions for simulation state
+q_curr = q0_val(:); % q_curr is [q1; q2; q3]
+
+% --- SIMULATION LOOP ---
+disp('Starting 3-DOF simulation with fixed lambda...');
+
+figure;
+hold on; grid on; axis equal;
+xlabel('X (m)'); ylabel('Y (m)');
+title('3-DOF RCM Arm Simulation (Fixed Lambda)');
+axis_limit = sum(l_val) * 1.05; % Adjusted for potentially larger workspace of 3 links
+xlim([-axis_limit, axis_limit]);
+ylim([-axis_limit, axis_limit]);
+
+% Plot fixed trocar position
+h_fixed_trocar = plot(p_trocar_val(1), p_trocar_val(2), 'kx', 'MarkerSize', 12, 'LineWidth', 2);
+
+% Plot fixed desired orientation line (for link 3, emanating from trocar)
+orient_line_len = l_val(3) * 1.5; % Visual length based on link 3
+h_desired_orientation_line = plot([p_trocar_val(1), p_trocar_val(1) + orient_line_len * cos(theta_d_val)], ...
+                                   [p_trocar_val(2), p_trocar_val(2) + orient_line_len * sin(theta_d_val)], ...
+                                   'k:', 'LineWidth', 1.5);
+% Plot handles for links and joints
+h_link1 = plot(0,0, 'r-', 'LineWidth', 2); % Link 1
+h_link2 = plot(0,0, 'b-', 'LineWidth', 2); % Link 2
+h_link3 = plot(0,0, 'g-', 'LineWidth', 2); % Link 3 (new, green)
+
+h_joint0_marker = plot(0,0,'k^','MarkerFaceColor','k','MarkerSize',8); % Base (triangle)
+h_joint1_marker = plot(0,0,'ko','MarkerFaceColor','k','MarkerSize',6); % Elbow 1 (end of L1)
+h_joint2_marker = plot(0,0,'ko','MarkerFaceColor','k','MarkerSize',6); % Elbow 2 (end of L2)
+h_ee_marker = plot(0,0,'ks','MarkerFaceColor','k','MarkerSize',6);     % End-effector (end of L3, square)
+
+% Plot actual RCM (on link 2, magenta empty circle)
+h_rcm_actual = plot(0,0, 'mo', 'MarkerSize', 6, 'LineWidth', 1.5, 'MarkerFaceColor', 'none');
+
+% Legend
+legend([h_fixed_trocar, h_desired_orientation_line, h_rcm_actual], ...
+       {'Fixed Trocar', 'Desired Orientation (Link 3)', 'Actual RCM (on Link 2)'}, ...
+       'Location', 'southwest');
+
+% Text object for displaying current values on the plot
+info_text_x = -axis_limit * 0.95;
+info_text_y = axis_limit * 0.9;
+h_info_text = text(info_text_x, info_text_y, '', 'VerticalAlignment', 'top', 'FontSize', 9, 'FontName', 'Consolas');
+
+for k_sim = 1:N_steps
+    time_k = (k_sim-1)*dt;
+
+    % --- Current state ---
+    q1_k = q_curr(1);
+    q2_k = q_curr(2);
+    q3_k = q_curr(3);
+
+    % --- Forward Kinematics (Numerical) ---
+    p1_k = p1_fun(q1_k, l_val(1));
+    p2_k = p2_fun(q1_k, q2_k, l_val(1), l_val(2));
+    p3_k = p3_fun(q1_k, q2_k, q3_k, l_val(1), l_val(2), l_val(3));
+
+    % Actual RCM position (on link 2, using fixed lambda)
+    p_rcm_actual_k = p_rcm_calc_fun(q1_k, q2_k, l_val(1), l_val(2));
+    % Actual orientation of link 3
+    theta_actual_k = theta_task_calc_fun(q1_k, q2_k, q3_k);
+
+    % --- Calculate Control Inputs (Numerical) ---
+    % J_ext_fun needs q1,q2,q3 for J_theta part, and l1,l2 for J_rcm part.
+    J_ext_k = J_ext_fun(q1_k, q2_k, q3_k, l_val(1), l_val(2));
+    % e_ext_fun needs q1,q2,q3, l1,l2 and targets.
+    e_ext_k = e_ext_fun(q1_k, q2_k, q3_k, l_val(1), l_val(2), theta_d_val, p_trocar_val);
+
+    % Control Law (ds_cmd = [dq1; dq2; dq3])
+    % No lambda null-space term anymore
+    pinv_J_ext_k = pinv(J_ext_k, 1e-6); % Use tolerance for robustness near singularities
+    ds_cmd_k = pinv_J_ext_k * (dx_d_val + K_ext * e_ext_k);
+
+    % --- State Update (Euler Integration) ---
+    q_curr = q_curr + ds_cmd_k * dt;
+
+    % --- Update Text on Plot ---
+    info_string = sprintf([...
+        'Time: %5.2f s\n' ...
+        'Act. Orient (L3): %6.4f rad\n' ...
+        'Tgt. Orient (L3): %6.4f rad\n' ...
+        'Act. RCM (on L2): (%6.3f, %6.3f)\n' ...
+        'Tgt. RCM (Trocar):(%6.3f, %6.3f)\n' ...
+        'Fixed Lambda: %4.2f\n' ...
+        'q = [%5.2f, %5.2f, %5.2f] rad'], ...
+        time_k, theta_actual_k, theta_d_val, ...
+        p_rcm_actual_k(1), p_rcm_actual_k(2), ...
+        p_trocar_val(1), p_trocar_val(2), ...
+        lambda_fixed_val, ...
+        q_curr(1), q_curr(2), q_curr(3)); % Display current q values
+    set(h_info_text, 'String', info_string);
+
+    % --- Update Plot ---
+    set(h_link1, 'XData', [0, p1_k(1)], 'YData', [0, p1_k(2)]);
+    set(h_link2, 'XData', [p1_k(1), p2_k(1)], 'YData', [p1_k(2), p2_k(2)]);
+    set(h_link3, 'XData', [p2_k(1), p3_k(1)], 'YData', [p2_k(2), p3_k(2)]);
+
+    set(h_joint0_marker, 'XData', 0, 'YData', 0);
+    set(h_joint1_marker, 'XData', p1_k(1), 'YData', p1_k(2));
+    set(h_joint2_marker, 'XData', p2_k(1), 'YData', p2_k(2));
+    set(h_ee_marker, 'XData', p3_k(1), 'YData', p3_k(2));
+    set(h_rcm_actual, 'XData', p_rcm_actual_k(1), 'YData', p_rcm_actual_k(2));
+
+    drawnow;
+    pause(0.05); % Slow down for visualization
+
+    % --- Check for convergence ---
+    if norm(e_ext_k) < 1e-4 && norm(ds_cmd_k) < 1e-4
+        final_info_string = sprintf([...
+            'CONVERGED!\n' ...
+            'Time: %5.2f s\n' ...
+            'Act. Orient (L3): %6.4f rad\n' ...
+            'Tgt. Orient (L3): %6.4f rad\n' ...
+            'Act. RCM (on L2): (%6.3f, %6.3f)\n' ...
+            'Tgt. RCM (Trocar):(%6.3f, %6.3f)\n' ...
+            'Fixed Lambda: %4.2f\n' ...
+            'q = [%5.2f, %5.2f, %5.2f] rad'], ...
+            time_k, theta_actual_k, theta_d_val, ...
+            p_rcm_actual_k(1), p_rcm_actual_k(2), ...
+            p_trocar_val(1), p_trocar_val(2), ...
+            lambda_fixed_val, ...
+            q_curr(1), q_curr(2), q_curr(3));
+        set(h_info_text, 'String', final_info_string, 'Color', 'green');
+        disp(['Converged at step ', num2str(k_sim), ' (Time = ', num2str(time_k), ' s)']);
+        break; % Exit loop
+    end
+end
+
+if k_sim == N_steps && ~(norm(e_ext_k) < 1e-4 && norm(ds_cmd_k) < 1e-4) % Check if loop finished due to max steps
+    final_info_string = sprintf([...
+        'SIM END (Max Steps)\n' ...
+        'Time: %5.2f s\n' ...
+        'Act. Orient (L3): %6.4f rad\n' ...
+        'Tgt. Orient (L3): %6.4f rad\n' ...
+        'Act. RCM (on L2): (%6.3f, %6.3f)\n' ...
+        'Tgt. RCM (Trocar):(%6.3f, %6.3f)\n' ...
+        'Fixed Lambda: %4.2f\n' ...
+        'q = [%5.2f, %5.2f, %5.2f] rad'], ...
+        time_k, theta_actual_k, theta_d_val, ...
+        p_rcm_actual_k(1), p_rcm_actual_k(2), ...
+        p_trocar_val(1), p_trocar_val(2), ...
+        lambda_fixed_val, ...
+        q_curr(1), q_curr(2), q_curr(3));
+    set(h_info_text, 'String', final_info_string, 'Color', 'red');
+    disp('Simulation finished (max steps reached).');
+elseif norm(e_ext_k) < 1e-4 && norm(ds_cmd_k) < 1e-4 % Ensure it was convergence
+    disp('Simulation finished (converged).');
+else % Should not happen if break works
+    disp('Simulation finished (unknown reason).');
+end
