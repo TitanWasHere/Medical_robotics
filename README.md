@@ -16,6 +16,8 @@ The first simulation (`Homework.m`) implements a 2-DOF planar manipulator with R
 
 This simulation demonstrates how surgical robots operate through a fixed entry point while maintaining proper tool orientation.
 
+![Simulation 1 Animation](./homework/Animation1.gif)
+
 ## Simulation 2: 4-DOF Advanced RCM Control
 
 The second simulation (`Homework2.m`) extends to a 4-DOF manipulator with:
@@ -29,6 +31,8 @@ The second simulation (`Homework2.m`) extends to a 4-DOF manipulator with:
 - Comprehensive visualization of all links, joints, and control targets
 
 This implementation models more complex surgical scenarios requiring precise end-effector control.
+
+![Simulation 2 Animation](./homework/Animation2.gif)
 
 ## Usage
 
