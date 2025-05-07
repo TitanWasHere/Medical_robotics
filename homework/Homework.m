@@ -3,30 +3,30 @@ clear; clc; close all;
 syms q1 q2 l1 l2 real
 syms dq1 dq2 ddq1 ddq2 real
 syms lambda dlambda real
-syms theta_d_sym real % Symbolic placeholder for theta_d
-syms p_trocar_x_sym p_trocar_y_sym real % Symbolic placeholders for p_trocar
+syms theta_d_sym real
+syms p_trocar_x_sym p_trocar_y_sym real 
 
 %% Definition of values from user
 lambda0 = 0.5;
-theta_d_val = pi/8; % Numerical value for theta_d
+theta_d_val = pi/8; 
 q0 = [pi/4, 0];
-l_val = [1,1]; % Numerical values for l1, l2
+l_val = [1,1]; 
 
 %% Symbolic values
-q_sym = [q1;q2]; % Ensure it's a column vector for jacobian
+q_sym = [q1;q2]; 
 dq_sym = [dq1;dq2];
 
 p1_sym = [l1 * cos(q1) ; l1 * sin(q1)];
 p2_sym = [l1 * cos(q1) + l2 * cos(q1+q2) ; l1 * sin(q1) + l2 * sin(q1+q2)];
 
 theta_sym = q1 + q2;
-J_theta_sym = jacobian(theta_sym, q_sym); % Will be [1, 1]
+J_theta_sym = jacobian(theta_sym, q_sym);
 
 p_rcm_sym = p1_sym + lambda * (p2_sym - p1_sym);
-J_rcm_q_sym = jacobian(p_rcm_sym, q_sym); % Jacobian of p_rcm w.r.t. q
+J_rcm_q_sym = jacobian(p_rcm_sym, q_sym);
 
 dJ_rcm_lambda_sym = p2_sym - p1_sym; % This is d(p_rcm)/d(lambda)
-J_rcm_ext_sym = [J_rcm_q_sym , dJ_rcm_lambda_sym]; % Jacobian of p_rcm w.r.t. [q; lambda]
+J_rcm_ext_sym = [J_rcm_q_sym , dJ_rcm_lambda_sym]; 
 
 %% Initial values (Numerical)
 p_rcm_sym_with_lengths = subs(p_rcm_sym, {l1, l2}, {l_val(1), l_val(2)});
@@ -63,20 +63,13 @@ e_ext_fun = matlabFunction(e_ext_sym, 'Vars', {q1, q2, l1, l2, lambda, theta_d_s
 w_fun = matlabFunction(w_sym, 'Vars', {lambda});
 
 %% Simulation Parameters
-dt = 0.02;       % Time step
-T_sim = 10;      % Total simulation time
+dt = 0.02;       
+T_sim = 10;      
 N_steps = round(T_sim/dt);
 
 % Initial conditions for simulation state
 q_curr = q0(:);
 lambda_curr = lambda0;
-
-% History storage (can be removed if not used elsewhere, but kept for now)
-q_hist = zeros(N_steps, 2);
-lambda_hist = zeros(N_steps, 1);
-p_rcm_actual_hist = zeros(N_steps, 2);
-theta_actual_hist = zeros(N_steps, 1);
-error_hist = zeros(N_steps, 3);
 
 %% Simulation Loop
 disp('Starting simulation...');
@@ -98,11 +91,12 @@ h_desired_orientation_line = plot([p_trocar_val(1), p_trocar_val(1) + orient_lin
                                    [p_trocar_val(2), p_trocar_val(2) + orient_line_len * sin(theta_d_val)], ...
                                    'k:', 'LineWidth', 1.5);
 
-% Plot handles (for animation - not in legend)
+% Plot handles (for animation)
 h_link1 = plot(0,0, 'r-', 'LineWidth', 2);
 h_link2 = plot(0,0, 'b-', 'LineWidth', 2);
-h_joint1_marker = plot(0,0,'ko','MarkerFaceColor','k','MarkerSize',3);
-h_joint2_marker = plot(0,0,'ko','MarkerFaceColor','k','MarkerSize',3);
+% Create a marker for the base joint with a filled triangle
+h_joint1_marker = plot(0,0,'k^','MarkerFaceColor','k','MarkerSize',2);
+h_joint2_marker = plot(0,0,'ko','MarkerFaceColor','k','MarkerSize',1);
 h_ee_marker = plot(0,0,'ko','MarkerFaceColor','k','MarkerSize',3);
 
 % Plot actual RCM (smaller, empty circle)
