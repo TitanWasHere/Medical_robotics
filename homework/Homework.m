@@ -78,7 +78,7 @@ figure;
 hold on; grid on; axis equal;
 xlabel('X (m)'); ylabel('Y (m)');
 title('2-DOF RCM Arm Simulation'); 
-axis_limit = sum(l_val) * 1.1;
+axis_limit = sum(l_val) * 1.4;
 xlim([-axis_limit, axis_limit]);
 ylim([-axis_limit, axis_limit]);
 

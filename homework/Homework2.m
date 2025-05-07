@@ -101,12 +101,12 @@ disp('Starting 4-DOF simulation: RCM, Tool Vector Orient, Link 4 Abs Orient...')
 figure;
 hold on; grid on; axis equal;
 xlabel('X (m)'); ylabel('Y (m)');
-title('4-DOF RCM Arm: Tool Vector & Link 4 Orientation (Fixed Lambda)');
+title('4R RCM Arm (Fixed Lambda)');
 axis_limit = sum(l_val) * 1.05;
 xlim([-axis_limit, axis_limit]); ylim([-axis_limit, axis_limit]);
 
-h_fixed_trocar = plot(p_trocar_val_num(1), p_trocar_val_num(2), 'kx', 'MarkerSize', 12, 'LineWidth', 2);
-orient_line_len = (l_val(3)+l_val(4)) * 1.1;
+
+orient_line_len = (l_val(3)+l_val(4)) * 1.8;
 h_desired_orientation_line = plot([p_trocar_val_num(1), p_trocar_val_num(1) + orient_line_len * cos(theta_d_val)], ...
                                    [p_trocar_val_num(2), p_trocar_val_num(2) + orient_line_len * sin(theta_d_val)], ...
                                    'k:', 'LineWidth', 1.5);
@@ -115,13 +115,13 @@ h_link2 = plot(0,0, 'b-', 'LineWidth', 2);
 h_link3 = plot(0,0, 'g-', 'LineWidth', 2);
 h_link4 = plot(0,0, 'm-', 'LineWidth', 2); % Link 4 in magenta
 
-h_joint0_marker = plot(0,0,'k^','MarkerFaceColor','k','MarkerSize',8); % Base
-h_joint1_marker = plot(0,0,'ko','MarkerFaceColor','k','MarkerSize',6); % End of L1
-h_joint2_marker = plot(0,0,'ko','MarkerFaceColor','k','MarkerSize',6); % End of L2
-h_joint3_marker = plot(0,0,'ko','MarkerFaceColor','k','MarkerSize',6); % End of L3
-h_ee_marker = plot(0,0,'ks','MarkerFaceColor','k','MarkerSize',6);     % End of L4 (P4)
-
-h_rcm_actual = plot(0,0, 'co', 'MarkerSize', 7, 'LineWidth', 1.5, 'MarkerFaceColor', 'none'); % Cyan RCM circle
+h_joint0_marker = plot(0,0,'k^','MarkerFaceColor','k','MarkerSize',3); % Base
+h_joint1_marker = plot(0,0,'ko','MarkerFaceColor','k','MarkerSize',2); % End of L1
+h_joint2_marker = plot(0,0,'ko','MarkerFaceColor','k','MarkerSize',2); % End of L2
+h_joint3_marker = plot(0,0,'ko','MarkerFaceColor','k','MarkerSize',2); % End of L3
+h_ee_marker = plot(0,0,'ks','MarkerFaceColor','k','MarkerSize',2);     % End of L4 (P4)
+h_fixed_trocar = plot(p_trocar_val_num(1), p_trocar_val_num(2), 'kx', 'MarkerSize', 12, 'LineWidth', 1);
+h_rcm_actual = plot(0,0, 'co', 'MarkerSize', 4, 'LineWidth', 1.5, 'MarkerFaceColor', 'none'); % Cyan RCM circle
 %h_actual_tool_vector = plot(0,0, 'c--', 'LineWidth', 1.5); % Cyan dashed: RCM to P4
 
 %legend([h_fixed_trocar, h_desired_orientation_line, h_rcm_actual, h_actual_tool_vector, h_link4], ...
@@ -180,13 +180,13 @@ for k_sim = 1:N_steps
     set(h_link1, 'XData', [0, p1_k(1)], 'YData', [0, p1_k(2)]);
     set(h_link2, 'XData', [p1_k(1), p2_k(1)], 'YData', [p1_k(2), p2_k(2)]);
     set(h_link3, 'XData', [p2_k(1), p3_k(1)], 'YData', [p2_k(2), p3_k(2)]);
-    set(h_link4, 'XData', [p3_k(1), p4_k(1)], 'YData', [p3_k(2), p4_k(2)]); % Plot Link 4
+    set(h_link4, 'XData', [p3_k(1), p4_k(1)], 'YData', [p3_k(2), p4_k(2)]); 
 
     set(h_joint0_marker, 'XData', 0, 'YData', 0);
     set(h_joint1_marker, 'XData', p1_k(1), 'YData', p1_k(2));
     set(h_joint2_marker, 'XData', p2_k(1), 'YData', p2_k(2));
-    set(h_joint3_marker, 'XData', p3_k(1), 'YData', p3_k(2)); % Marker at end of Link 3
-    set(h_ee_marker, 'XData', p4_k(1), 'YData', p4_k(2));     % Marker at end of Link 4
+    set(h_joint3_marker, 'XData', p3_k(1), 'YData', p3_k(2)); 
+    set(h_ee_marker, 'XData', p4_k(1), 'YData', p4_k(2));     
 
     set(h_rcm_actual, 'XData', rcm_actual_x_k, 'YData', rcm_actual_y_k);
     %set(h_actual_tool_vector, 'XData', [rcm_actual_x_k, p4_k(1)], 'YData', [rcm_actual_y_k, p4_k(2)]);
