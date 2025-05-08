@@ -177,7 +177,7 @@ for k_sim = 1:N_steps
             p_trocar_val_num(1), p_trocar_val_num(2), ...
             lambda_fixed_val, ...
             q_curr(1), q_curr(2), q_curr(3));
-        set(h_info_text, 'String', final_info_string, 'Color', 'green');
+        set(h_info_text, 'String', final_info_string, 'Color', 'blue');
         disp(['Converged at step ', num2str(k_sim), ' (Time = ', num2str(time_k), ' s)']);
         break;
     end

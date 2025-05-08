@@ -164,7 +164,7 @@ for k = 1:N_steps
     if norm(e_ext_k) < 1e-4 && norm(ds_cmd_k) < 1e-4
         final_info_string = sprintf('CONVERGED!\nTime: %5.2f s\nAct. Orient (rad): %6.4f\nTarget Orientation (rad): %6.4f\nAct. RCM: %6.3f, %6.3f\nLambda: %6.3f\nTrocar:%6.4f, %6.4f', ...
                                   time_k, theta_actual_k, pi/8, p_rcm_actual_k(1), p_rcm_actual_k(2), lambda_k, p_trocar_val(1), p_trocar_val(2));
-        set(h_info_text, 'String', final_info_string, 'Color', 'green');
+        set(h_info_text, 'String', final_info_string, 'Color', 'blue');
         disp(['Converged at step ', num2str(k), ' (Time = ', num2str(time_k), ' s)']);
         break;
     end
