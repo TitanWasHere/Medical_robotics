@@ -18,12 +18,12 @@ This simulation demonstrates how surgical robots operate through a fixed entry p
 
 ![Simulation 1 Animation](./homework/Animation1.gif)
 
-## Simulation 2: 4-DOF Advanced RCM Control
+## Simulation 2: 3-DOF Advanced RCM Control
 
-The second simulation (`Homework2.m`) extends to a 4-DOF manipulator with:
+The second simulation (`Homework2_3Rv2.m`) extends to a 3-DOF manipulator with:
 
-- Four-link planar robot with configurable parameters
-- Fixed RCM point on link 2 (λ = 0.5)
+- Three-link planar robot with configurable parameters
+- Fixed RCM point on link 3 (λ = 0.5)
 - Hierarchical task control:
     1. Maintaining RCM position at trocar (2 DOF)
     2. Controlling tool vector orientation through the trocar
