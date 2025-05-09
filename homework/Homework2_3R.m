@@ -6,19 +6,20 @@ syms dq1 dq2 dq3 ddq1 ddq2 ddq3 real
 syms theta_d_sym real
 syms p_trocar_x_sym p_trocar_y_sym real
 
+%% Definition of values from user
 lambda_fixed_val = 0.5;
 theta_d_val = pi/8;
 q0_val = [pi/4, 0, -pi/16]; 
 l_val = [1, 1, 0.75];       
 
-% --- SYMBOLIC KINEMATICS ---
-q_sym = [q1; q2; q3];
+%% Symbolic values
+q_sym = [q1;q2;q3];
 
 p1_sym = [l1 * cos(q1); l1 * sin(q1)];
 p2_sym = p1_sym + [l2 * cos(q1+q2); l2 * sin(q1+q2)];
 p3_sym = p2_sym + [l3 * cos(q1+q2+q3); l3 * sin(q1+q2+q3)];
 
-% Task 1 & 2: RCM point on the *second link*
+% Task 1 & 2: RCM point on the second link
 p_rcm_on_link2_sym = p1_sym + lambda_fixed_val * (p2_sym - p1_sym);
 J_rcm_on_link2_sym = jacobian(p_rcm_on_link2_sym, q_sym); 
 
@@ -29,11 +30,12 @@ V_tool_y_sym = p3_sym(2) - p_trocar_y_sym;
 theta_tool_from_trocar_sym = atan2(V_tool_y_sym, V_tool_x_sym);
 J_theta_tool_from_trocar_sym = jacobian(theta_tool_from_trocar_sym, q_sym); 
 
-% --- INITIAL NUMERICAL VALUES ---
+% Init numerical values
 p_rcm_init_calc_sym = subs(p_rcm_on_link2_sym, {l1, l2}, {l_val(1), l_val(2)});
 p_trocar_val_num = double(subs(p_rcm_init_calc_sym, {q1, q2}, {q0_val(1), q0_val(2)})); 
 
-% --- KINEMATIC CONTROL (Symbolic) ---
+%% Kinematic control
+
 J_ext_sym = [J_theta_tool_from_trocar_sym; J_rcm_on_link2_sym];
 
 % Task Errors
@@ -44,17 +46,17 @@ e_theta_corr_sym = atan2(sin(e_theta_raw_sym), cos(e_theta_raw_sym));
 % RCM error (vector from actual RCM to target trocar)
 p_trocar_target_as_sym_vec = [p_trocar_x_sym; p_trocar_y_sym]; % Use symbolic trocar for error definition
 e_rcm_sym = p_trocar_target_as_sym_vec - p_rcm_on_link2_sym;
-e_ext_sym = [e_theta_corr_sym ; e_rcm_sym]; % 3x1 error vector
+e_ext_sym = [e_theta_corr_sym ; e_rcm_sym]; 
 
 % Gain matrix
-k_rcm = 7; % Increased RCM gain slightly
-k_theta = 5; % Increased Theta gain slightly
+k_rcm = 7; 
+k_theta = 5; 
 K_ext = diag([k_theta, k_rcm, k_rcm]);
 
 % Desired task velocity
 dx_d_val = [0; 0; 0]; % For [dtheta_tool_dt; dpx_rcm_dt; dpy_rcm_dt]
 
-% --- CONVERT SYMBOLIC EXPRESSIONS TO MATLAB FUNCTIONS ---
+%% Convertion to MATLAB functions
 p1_fun = matlabFunction(p1_sym, 'Vars', {q1, l1});
 p2_fun = matlabFunction(p2_sym, 'Vars', {q1, q2, l1, l2});
 p3_fun = matlabFunction(p3_sym, 'Vars', {q1, q2, q3, l1, l2, l3});
@@ -67,13 +69,13 @@ J_ext_fun = matlabFunction(J_ext_sym, 'Vars', {q1, q2, q3, l1, l2, l3, p_trocar_
 % e_ext_fun will depend on q1,q2,q3, l1,l2,l3, theta_d_sym, p_trocar_x_sym, p_trocar_y_sym
 e_ext_fun = matlabFunction(e_ext_sym, 'Vars', {q1, q2, q3, l1, l2, l3, theta_d_sym, p_trocar_x_sym, p_trocar_y_sym});
 
-% --- SIMULATION PARAMETERS ---
+%% Parameters for the simulation
 dt = 0.02;
-T_sim = 12; % Slightly longer simulation time
+T_sim = 12; 
 N_steps = round(T_sim/dt);
 q_curr = q0_val(:);
 
-% --- SIMULATION LOOP ---
+%% Simulation
 disp('Starting 3-DOF simulation with fixed lambda and corrected orientation task...');
 figure;
 hold on; grid on; axis equal;
@@ -107,7 +109,8 @@ legend([h_fixed_trocar, h_desired_orientation_line, h_rcm_actual], ...
        {'Fixed Trocar', 'Desired Tool Orientation', 'Actual RCM (on Link 2)'}, ...
        'Location', 'southwest', 'FontSize', 8);
 
-info_text_x = -axis_limit * 0.95; info_text_y = axis_limit * 0.9;
+info_text_x = -axis_limit * 0.95; 
+info_text_y = axis_limit * 0.9;
 h_info_text = text(info_text_x, info_text_y, '', 'VerticalAlignment', 'top', 'FontSize', 9, 'FontName', 'Consolas');
 
 for k_sim = 1:N_steps
@@ -121,7 +124,6 @@ for k_sim = 1:N_steps
     % Actual tool orientation from trocar (using numerical trocar position)
     theta_tool_actual_k = theta_tool_calc_fun(q1_k, q2_k, q3_k, l_val(1), l_val(2), l_val(3), p_trocar_val_num(1), p_trocar_val_num(2));
 
-    % --- Control Inputs ---
     % Pass numerical trocar_x, trocar_y to functions expecting symbolic placeholders
     J_ext_k = J_ext_fun(q1_k, q2_k, q3_k, l_val(1), l_val(2), l_val(3), p_trocar_val_num(1), p_trocar_val_num(2));
     e_ext_k = e_ext_fun(q1_k, q2_k, q3_k, l_val(1), l_val(2), l_val(3), theta_d_val, p_trocar_val_num(1), p_trocar_val_num(2));
@@ -137,13 +139,11 @@ for k_sim = 1:N_steps
         'Tgt. Tool Orient: %6.4f rad\n' ...
         'Act. RCM (L2): (%6.3f, %6.3f)\n' ...
         'Tgt. RCM (Trocar):(%6.3f, %6.3f)\n' ...
-        'Fixed Lambda: %4.2f\n' ...
-        'q = [%5.2f, %5.2f, %5.2f] rad'], ...
+        'Fixed Lambda: %4.2f\n'], ...
         time_k, theta_tool_actual_k, theta_d_val, ...
         p_rcm_actual_k(1), p_rcm_actual_k(2), ...
         p_trocar_val_num(1), p_trocar_val_num(2), ...
-        lambda_fixed_val, ...
-        q_curr(1), q_curr(2), q_curr(3));
+        lambda_fixed_val);
     set(h_info_text, 'String', info_string);
 
     set(h_link1, 'XData', [0, p1_k(1)], 'YData', [0, p1_k(2)]);
@@ -162,7 +162,6 @@ for k_sim = 1:N_steps
     pause(0.05);
 
     if norm(e_ext_k(2:3)) < 1e-3 && abs(e_ext_k(1)) < 1e-3 && norm(ds_cmd_k) < 1e-3 % Stricter error check
-        % ... (convergence message update) ...
         final_info_string = sprintf([...
             'CONVERGED!\n' ...
             'Time: %5.2f s\n' ...
@@ -170,13 +169,11 @@ for k_sim = 1:N_steps
             'Tgt. Tool Orient: %6.4f rad\n' ...
             'Act. RCM (L2): (%6.3f, %6.3f)\n' ...
             'Tgt. RCM (Trocar):(%6.3f, %6.3f)\n' ...
-            'Fixed Lambda: %4.2f\n' ...
-            'q = [%5.2f, %5.2f, %5.2f] rad'], ...
+            'Fixed Lambda: %4.2f\n'], ...
             time_k, theta_tool_actual_k, theta_d_val, ...
             p_rcm_actual_k(1), p_rcm_actual_k(2), ...
             p_trocar_val_num(1), p_trocar_val_num(2), ...
-            lambda_fixed_val, ...
-            q_curr(1), q_curr(2), q_curr(3));
+            lambda_fixed_val);
         set(h_info_text, 'String', final_info_string, 'Color', 'blue');
         disp(['Converged at step ', num2str(k_sim), ' (Time = ', num2str(time_k), ' s)']);
         break;
@@ -191,13 +188,11 @@ if k_sim == N_steps && ~(norm(e_ext_k(2:3)) < 1e-3 && abs(e_ext_k(1)) < 1e-3 && 
         'Tgt. Tool Orient: %6.4f rad\n' ...
         'Act. RCM (L2): (%6.3f, %6.3f)\n' ...
         'Tgt. RCM (Trocar):(%6.3f, %6.3f)\n' ...
-        'Fixed Lambda: %4.2f\n' ...
-        'q = [%5.2f, %5.2f, %5.2f] rad'], ...
+        'Fixed Lambda: %4.2f\n'], ...
         time_k, theta_tool_actual_k, theta_d_val, ...
         p_rcm_actual_k(1), p_rcm_actual_k(2), ...
         p_trocar_val_num(1), p_trocar_val_num(2), ...
-        lambda_fixed_val, ...
-        q_curr(1), q_curr(2), q_curr(3));
+        lambda_fixed_val);
     set(h_info_text, 'String', final_info_string, 'Color', 'red');
     disp('Simulation finished (max steps reached).');
 elseif ~(k_sim == N_steps) % Converged
