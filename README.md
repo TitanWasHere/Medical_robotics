@@ -1,6 +1,6 @@
 # Medical Robotics Simulations
 
-This repository contains MATLAB simulations for medical robotics applications focused on Remote Center of Motion (RCM) control, a technique essential for minimally invasive surgery.
+This repository contains MATLAB simulations for the Medical Robotics course at Sapienza, University of Rome.
 
 ## Simulation 1: 2-DOF Kinematic RCM Control
 
